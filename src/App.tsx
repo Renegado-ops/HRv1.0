@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Bell, Plus, X, Check, XCircle, Pencil, LogOut, ArrowLeft,
   Settings as GearIcon, Users, Calendar, AlertTriangle, Download, Info, ShieldCheck, Key, UserCog, Lock,
-  ChevronLeft, ChevronRight, Upload, Server, Trash2, MapPin, UserPlus, Globe
+  ChevronLeft, ChevronRight, Upload, Server, Trash2, MapPin, UserPlus, Globe, Clock, BarChart3
 } from 'lucide-react';
 
 // --- INTERFACES ---
@@ -145,6 +145,7 @@ const translations = {
     welcomeBack: 'Welcome back',
     signInAdmin: 'Sign in as Admin (Alex)',
     signInManager: 'Sign in as Manager (Sarah)',
+    signInUser: 'Sign in as Employee (Aaron)',
     newHireDemo: 'New Hire Google SSO Demo',
     userDesc: 'Basic self-service access. Request time-off and view personal balances.',
     managerDesc: 'Supervision. Approve or reject requests exclusively for their assigned team.',
@@ -163,7 +164,27 @@ const translations = {
     auditTrailSub: 'Record all administrative actions permanently',
     emailNotifTitle: 'Email Notifications',
     emailNotifSub: 'Send alerts for PTO approvals and tardanzas',
-    timezoneLabel: 'Timezone:'
+    timezoneLabel: 'Timezone:',
+    backToEmployees: 'Back to Employees',
+    currentLeaveYear: 'Current Leave Year (2026)',
+    vacationAllowance: 'Vacation Allowance',
+    vacationTaken: 'Vacation Taken',
+    ptoAllowance: 'PTO Allowance',
+    ptoTaken: 'PTO Taken',
+    sickAllowance: 'Sick Leave Allowance',
+    sickTaken: 'Sick Leave Taken',
+    floatingAllowance: 'Floating Day Allowance',
+    floatingTaken: 'Floating Day Taken',
+    tardanzaAllowance: 'Tardanza Limit (Incidences)',
+    tardanzaTaken: 'Tardanzas Logged',
+    remaining: 'Remaining',
+    personalInfo: 'Personal Information',
+    currentSchedule: 'Current Schedule',
+    weeklyWorkSchedule: 'Weekly Work Schedule',
+    workdayHours: '40 hours / 5 days = 8h:00m per workday',
+    timeOffApprover: 'Time Off Approver',
+    hireDateLabel: 'Hire date:',
+    editBtn: 'Edit'
   },
   ES: {
     dashboard: 'Panel Principal',
@@ -250,6 +271,7 @@ const translations = {
     welcomeBack: 'Bienvenido de nuevo',
     signInAdmin: 'Iniciar como Admin (Alex)',
     signInManager: 'Iniciar como Manager (Sarah)',
+    signInUser: 'Iniciar como Empleado (Aaron)',
     newHireDemo: 'Demo SSO Nuevo Empleado',
     userDesc: 'Autoservicio básico. Solicitar permisos y ver balances personales.',
     managerDesc: 'Supervisión. Aprobar o rechazar permisos exclusivamente de su equipo.',
@@ -268,11 +290,31 @@ const translations = {
     auditTrailSub: 'Registrar todas las acciones administrativas permanentemente',
     emailNotifTitle: 'Notificaciones por Correo',
     emailNotifSub: 'Enviar alertas para aprobaciones de PTO y tardanzas',
-    timezoneLabel: 'Zona Horaria:'
+    timezoneLabel: 'Zona Horaria:',
+    backToEmployees: 'Volver a Empleados',
+    currentLeaveYear: 'Año de Licencia Actual (2026)',
+    vacationAllowance: 'Límite de Vacaciones',
+    vacationTaken: 'Vacaciones Tomadas',
+    ptoAllowance: 'Límite de PTO',
+    ptoTaken: 'PTO Tomado',
+    sickAllowance: 'Límite de Licencia Médica',
+    sickTaken: 'Licencias Médicas Tomadas',
+    floatingAllowance: 'Límite de Días Flotantes',
+    floatingTaken: 'Días Flotantes Tomados',
+    tardanzaAllowance: 'Límite de Tardanzas',
+    tardanzaTaken: 'Tardanzas Registradas',
+    remaining: 'Restante',
+    personalInfo: 'Información Personal',
+    currentSchedule: 'Horario Actual',
+    weeklyWorkSchedule: 'Horario Semanal de Trabajo',
+    workdayHours: '40 horas / 5 días = 8h:00m por día laboral',
+    timeOffApprover: 'Aprobador de Permisos',
+    hireDateLabel: 'Fecha de Contratación:',
+    editBtn: 'Editar'
   }
 };
 
-// --- FUNCIONES TRADUCTORAS DE ELEMENTOS DINÁMICOS ---
+// --- FUNCIONES TRADUCTORAS ---
 const translateRole = (role: string, lang: 'EN' | 'ES') => {
   if (lang === 'EN') return role;
   const map: Record<string, string> = {
@@ -319,6 +361,22 @@ const translateDuration = (dur: string, lang: 'EN' | 'ES') => {
     'Hourly (Late Arrival)': 'Por Horas (Tardanza)'
   };
   return map[dur] || dur;
+};
+
+// FUNCIÓN AUXILIAR DE ACCESO A PESTAÑAS SEGÚN EL ROL
+const getAllowedTabs = (role: string) => {
+  switch (role) {
+    case 'User':
+      return ['Dashboard', 'Calendar', 'Requests'];
+    case 'Manager':
+      return ['Dashboard', 'Calendar', 'Requests', 'Teams'];
+    case 'Accounting':
+      return ['Dashboard', 'Calendar', 'Requests', 'Reports'];
+    case 'Admin':
+    case 'Owner':
+    default:
+      return ['Dashboard', 'Calendar', 'Requests', 'Employees', 'Teams', 'Offices', 'Reports', 'Audit Trail', 'Settings'];
+  }
 };
 
 // --- BRAND COMPONENT ---
@@ -451,22 +509,22 @@ export default function App() {
 
   // Estado del Sistema
   const [employees, setEmployees] = useState<Employee[]>(() => {
-    const saved = localStorage.getItem('itr_hrv_employees_final_v20');
+    const saved = localStorage.getItem('itr_hrv_employees_final_v23');
     return saved ? JSON.parse(saved) : initialEmployees;
   });
 
   const [requests, setRequests] = useState<LeaveRequest[]>(() => {
-    const saved = localStorage.getItem('itr_hrv_requests_final_v20');
+    const saved = localStorage.getItem('itr_hrv_requests_final_v23');
     return saved ? JSON.parse(saved) : initialRequests;
   });
 
   const [teams, setTeams] = useState<Team[]>(() => {
-    const saved = localStorage.getItem('itr_hrv_teams_v20');
+    const saved = localStorage.getItem('itr_hrv_teams_v23');
     return saved ? JSON.parse(saved) : initialTeams;
   });
 
   const [offices, setOffices] = useState<Office[]>(() => {
-    const saved = localStorage.getItem('itr_hrv_offices_v20');
+    const saved = localStorage.getItem('itr_hrv_offices_v23');
     return saved ? JSON.parse(saved) : initialOffices;
   });
 
@@ -516,10 +574,18 @@ export default function App() {
   // Control del Calendario
   const [currentDate, setCurrentDate] = useState(new Date(2026, 8, 1));
 
-  useEffect(() => { localStorage.setItem('itr_hrv_employees_final_v20', JSON.stringify(employees)); }, [employees]);
-  useEffect(() => { localStorage.setItem('itr_hrv_requests_final_v20', JSON.stringify(requests)); }, [requests]);
-  useEffect(() => { localStorage.setItem('itr_hrv_teams_v20', JSON.stringify(teams)); }, [teams]);
-  useEffect(() => { localStorage.setItem('itr_hrv_offices_v20', JSON.stringify(offices)); }, [offices]);
+  useEffect(() => { localStorage.setItem('itr_hrv_employees_final_v23', JSON.stringify(employees)); }, [employees]);
+  useEffect(() => { localStorage.setItem('itr_hrv_requests_final_v23', JSON.stringify(requests)); }, [requests]);
+  useEffect(() => { localStorage.setItem('itr_hrv_teams_v23', JSON.stringify(teams)); }, [teams]);
+  useEffect(() => { localStorage.setItem('itr_hrv_offices_v23', JSON.stringify(offices)); }, [offices]);
+
+  // Asegurar que la pestaña activa corresponda con los permisos del usuario al cambiar de rol o login
+  useEffect(() => {
+    const allowed = getAllowedTabs(currentUser.role);
+    if (!allowed.includes(activeTab)) {
+      setActiveTab('Dashboard');
+    }
+  }, [currentUser.role, isLoggedIn]);
 
   // RESETEAR FORMULARIO DE SOLICITUD
   const resetRequestForm = () => {
@@ -547,6 +613,7 @@ export default function App() {
     setAuditLogs([newLog, ...auditLogs]);
   };
 
+  const isOwner = currentUser.role === 'Owner';
   const isAdminOrOwner = currentUser.role === 'Admin' || currentUser.role === 'Owner';
   const isManager = currentUser.role === 'Manager';
 
@@ -617,6 +684,20 @@ export default function App() {
 
   const handleChangeRole = (id: string, newRole: 'User' | 'Manager' | 'Admin' | 'Accounting' | 'Owner') => {
     if (!isAdminOrOwner) return;
+
+    // RESTRICCIÓN DE SEGURIDAD: Solo Owner puede asignar el rol de Owner y máximo 2
+    if (newRole === 'Owner') {
+      if (!isOwner) {
+        alert("Only the Owner can assign the Owner role.");
+        return;
+      }
+      const ownerCount = employees.filter(e => e.role === 'Owner').length;
+      if (ownerCount >= 2) {
+        alert("Maximum limit of 2 Owners reached for this organization.");
+        return;
+      }
+    }
+
     const emp = employees.find(e => e.id === id);
     if (!emp) return;
     setEmployees(employees.map(e => e.id === id ? { ...e, role: newRole } : e));
@@ -653,6 +734,13 @@ export default function App() {
   const handleSaveEditEmployee = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEmployee) return;
+
+    // Validación si se intentó cambiar a Owner desde Admin
+    if (editingEmployee.role === 'Owner' && !isOwner) {
+      alert("Only the Owner can assign the Owner role.");
+      return;
+    }
+
     setEmployees(employees.map(emp => emp.id === editingEmployee.id ? editingEmployee : emp));
     addAuditLog(currentUser.name, 'Edit User', `Updated employee details for ${editingEmployee.name}`);
     setEditingEmployee(null);
@@ -661,6 +749,12 @@ export default function App() {
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName || !newUserEmail) return;
+
+    if (newUserRole === 'Owner' && !isOwner) {
+      alert("Only the Owner can assign the Owner role.");
+      return;
+    }
+
     const newUser: Employee = {
       id: Date.now().toString(),
       name: newUserName,
@@ -882,20 +976,24 @@ export default function App() {
             <p className="text-xs text-gray-500">{t.protectedGoogle}</p>
           </div>
           
-          <div className="w-full space-y-3 pt-2">
-            <button onClick={() => handleGoogleSSOLogin({ name: 'Alex Morgan', email: 'alex.morgan@company.com', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&h=120&fit=crop', role: 'Owner' })} className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-slate-700 font-semibold py-2.5 rounded-full text-xs shadow-sm transition flex items-center justify-center space-x-2 cursor-pointer">
+          <div className="w-full space-y-2.5 pt-2">
+            <button onClick={() => handleGoogleSSOLogin({ name: 'Alex Morgan', email: 'alex.morgan@company.com', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&h=120&fit=crop', role: 'Owner' })} className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-slate-700 font-semibold py-2 rounded-full text-xs shadow-sm transition flex items-center justify-center space-x-2 cursor-pointer">
               <GoogleIcon /><span>{t.signInAdmin}</span>
             </button>
 
-            <button onClick={() => handleGoogleSSOLogin({ name: 'Sarah Connor', email: 'sarah.connor@company.com', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=120&h=120&fit=crop', role: 'Manager' })} className="w-full bg-[#0052cc] hover:bg-[#003db3] text-white font-semibold py-2.5 rounded-full text-xs shadow-sm transition flex items-center justify-center space-x-2 cursor-pointer">
+            <button onClick={() => handleGoogleSSOLogin({ name: 'Sarah Connor', email: 'sarah.connor@company.com', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=120&h=120&fit=crop', role: 'Manager' })} className="w-full bg-[#0052cc] hover:bg-[#003db3] text-white font-semibold py-2 rounded-full text-xs shadow-sm transition flex items-center justify-center space-x-2 cursor-pointer">
               <ShieldCheck className="w-4 h-4 text-[#00f2ad]" /><span>{t.signInManager}</span>
+            </button>
+
+            <button onClick={() => handleGoogleSSOLogin({ name: 'Aaron Garcia', email: 'aaron.garcia@company.com', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop', role: 'User' })} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 rounded-full text-xs transition flex items-center justify-center space-x-2 cursor-pointer border border-slate-200">
+              <Users className="w-4 h-4 text-slate-600" /><span>{t.signInUser}</span>
             </button>
 
             <div className="relative flex items-center py-1">
               <div className="flex-grow border-t border-gray-200"></div><span className="flex-shrink-0 mx-3 text-gray-400 text-[10px] font-medium">Or simulate new hire</span><div className="flex-grow border-t border-gray-200"></div>
             </div>
 
-            <button onClick={() => handleGoogleSSOLogin({ name: 'Elena Rodríguez', email: 'elena.rodriguez@company.com', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop', role: 'User' })} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 rounded-full text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer">
+            <button onClick={() => handleGoogleSSOLogin({ name: 'Elena Rodríguez', email: 'elena.rodriguez@company.com', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop', role: 'User' })} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 rounded-full text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer">
               <Users className="w-4 h-4 text-sky-400" /><span>{t.newHireDemo}</span>
             </button>
           </div>
@@ -903,6 +1001,9 @@ export default function App() {
       </div>
     );
   }
+
+  // Pestañas permitidas según el rol actual del usuario en sesión
+  const allowedTabs = getAllowedTabs(currentUser.role);
 
   // --- VISTA APLICACIÓN PRINCIPAL ---
   return (
@@ -917,7 +1018,7 @@ export default function App() {
             <ITRHRvBrand variant="header" />
           </div>
 
-          {/* NAVEGACIÓN CENTRADA */}
+          {/* NAVEGACIÓN FILTRADA ESTRICTAMENTE SEGÚN ROL */}
           <nav className="hidden md:flex items-center justify-center space-x-1 lg:space-x-2 text-xs lg:text-sm font-medium mx-auto">
             {[
               { id: 'Dashboard', label: t.dashboard },
@@ -929,7 +1030,9 @@ export default function App() {
               { id: 'Reports', label: t.reports },
               { id: 'Audit Trail', label: t.auditTrail },
               { id: 'Settings', label: t.settings }
-            ].map((item) => (
+            ]
+            .filter(tab => allowedTabs.includes(tab.id))
+            .map((item) => (
               <button
                 key={item.id}
                 onClick={(e) => { e.stopPropagation(); setActiveTab(item.id); setSelectedEmployeeId(null); setSettingsSubView(null); }}
@@ -1155,8 +1258,8 @@ export default function App() {
           </div>
         )}
 
-        {/* 4. EMPLOYEES (CONTENEDOR CON OVERFLOW-VISIBLE Y PB-16 PARA ELIMINAR EL SCROLLBAR) */}
-        {activeTab === 'Employees' && (
+        {/* 4. EMPLOYEES */}
+        {activeTab === 'Employees' && allowedTabs.includes('Employees') && (
           <div>
             {!selectedEmployeeId ? (
               <div className="space-y-6">
@@ -1289,11 +1392,16 @@ export default function App() {
                                     </div>
                                     <div className="py-1">
                                       <p className="px-3 py-1 text-[10px] font-bold uppercase text-gray-400">{t.assignRole}</p>
-                                      {(['User', 'Manager', 'Admin', 'Accounting', 'Owner'] as const).map((roleChoice) => (
-                                        <button key={roleChoice} onClick={() => handleChangeRole(emp.id, roleChoice)} className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition flex items-center justify-between cursor-pointer ${emp.role === roleChoice ? 'font-bold text-[#0052cc] bg-sky-50/50' : 'text-slate-600'}`}>
-                                          <span>Set as {translateRole(roleChoice, lang)}</span>{emp.role === roleChoice && <Check className="w-3 h-3 text-[#0052cc]" />}
-                                        </button>
-                                      ))}
+                                      {(['User', 'Manager', 'Admin', 'Accounting', 'Owner'] as const).map((roleChoice) => {
+                                        // Si el usuario actual es Admin, ocultar opción de Owner
+                                        if (roleChoice === 'Owner' && !isOwner) return null;
+
+                                        return (
+                                          <button key={roleChoice} onClick={() => handleChangeRole(emp.id, roleChoice)} className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition flex items-center justify-between cursor-pointer ${emp.role === roleChoice ? 'font-bold text-[#0052cc] bg-sky-50/50' : 'text-slate-600'}`}>
+                                            <span>Set as {translateRole(roleChoice, lang)}</span>{emp.role === roleChoice && <Check className="w-3 h-3 text-[#0052cc]" />}
+                                          </button>
+                                        );
+                                      })}
                                     </div>
                                     <div className="py-1">
                                       <button onClick={() => handleDeleteUser(emp.id)} className="w-full text-left px-3 py-1.5 text-rose-600 hover:bg-rose-50 font-medium transition flex items-center space-x-1.5 cursor-pointer">
@@ -1313,21 +1421,294 @@ export default function App() {
 
               </div>
             ) : (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center border-b pb-4">
-                  <button onClick={() => setSelectedEmployeeId(null)} className="flex items-center space-x-2 text-[#0052cc] hover:underline text-sm font-medium cursor-pointer">
-                    <ArrowLeft className="w-4 h-4" /><span>Back to Employees</span>
-                  </button>
-                  <h2 className="text-2xl font-normal text-slate-700">{activeEmployee?.name}</h2>
-                </div>
-                <div className="bg-white rounded-xl border p-6 shadow-sm"><h3 className="text-lg font-bold text-slate-800">{activeEmployee?.name}</h3></div>
-              </div>
+              /* DETALLE DE EMPLEADO COMPLETO (CON EDICIÓN Y TODOS LOS BALANCES) */
+              (() => {
+                const emp = activeEmployee;
+                if (!emp) return null;
+
+                const empVacationTaken = requests
+                  .filter(r => r.employeeName === emp.name && r.type === 'Vacation' && r.status === 'Approved')
+                  .reduce((sum, r) => sum + r.days, 0);
+
+                const empPtoTaken = requests
+                  .filter(r => r.employeeName === emp.name && r.type === 'PTO' && r.status === 'Approved')
+                  .reduce((sum, r) => sum + r.days, 0);
+
+                const empSickTaken = requests
+                  .filter(r => r.employeeName === emp.name && r.type === 'Sick leave' && r.status === 'Approved')
+                  .reduce((sum, r) => sum + r.days, 0);
+
+                const empFloatingTaken = requests
+                  .filter(r => r.employeeName === emp.name && r.type === 'Floating Day' && r.status === 'Approved')
+                  .reduce((sum, r) => sum + r.days, 0);
+
+                const empTardanzaTaken = requests
+                  .filter(r => r.employeeName === emp.name && r.type === 'Tardanza (Late Arrival)' && r.status === 'Approved')
+                  .length;
+
+                const vacAllowance = 14.0;
+                const ptoAllowance = 3.0;
+                const sickAllowance = 5.0;
+                const floatingAllowance = 2.0;
+                const tardanzaAllowance = 5;
+
+                const vacRemaining = Math.max(0, vacAllowance - empVacationTaken);
+                const ptoRemaining = Math.max(0, ptoAllowance - empPtoTaken);
+                const sickRemaining = Math.max(0, sickAllowance - empSickTaken);
+                const floatingRemaining = Math.max(0, floatingAllowance - empFloatingTaken);
+                const tardanzaRemaining = Math.max(0, tardanzaAllowance - empTardanzaTaken);
+
+                const vacTakenPct = Math.min(100, Math.round((empVacationTaken / vacAllowance) * 100));
+                const ptoTakenPct = Math.min(100, Math.round((empPtoTaken / ptoAllowance) * 100));
+                const sickTakenPct = Math.min(100, Math.round((empSickTaken / sickAllowance) * 100));
+                const floatingTakenPct = Math.min(100, Math.round((empFloatingTaken / floatingAllowance) * 100));
+                const tardanzaTakenPct = Math.min(100, Math.round((empTardanzaTaken / tardanzaAllowance) * 100));
+
+                const empTeamObj = teams.find(tItem => tItem.name === emp.team);
+                const timeOffApprover = empTeamObj?.lead || 'Alex Morgan';
+
+                return (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center border-b pb-4">
+                      <button onClick={() => setSelectedEmployeeId(null)} className="flex items-center space-x-2 text-[#0052cc] hover:underline text-sm font-semibold cursor-pointer">
+                        <ArrowLeft className="w-4 h-4" /><span>{t.backToEmployees}</span>
+                      </button>
+                      <h2 className="text-2xl font-normal text-slate-700">{emp.name}</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="space-y-6">
+                        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col items-center text-center space-y-3 relative">
+                          <ITRHRvBrand variant="login" />
+                          <h3 className="text-lg font-bold text-slate-800 mt-1">{emp.name}</h3>
+                          <p className="text-xs text-gray-400">{t.hireDateLabel} <span className="font-semibold text-slate-700">{emp.hireDate}</span></p>
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            emp.role === 'Owner' ? 'bg-amber-100 text-amber-800' :
+                            emp.role === 'Admin' ? 'bg-[#0052cc]/10 text-[#0052cc]' :
+                            emp.role === 'Manager' ? 'bg-sky-100 text-sky-800' :
+                            emp.role === 'Accounting' ? 'bg-[#00c896]/15 text-[#008f62]' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {translateRole(emp.role, lang)}
+                          </span>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+                          <div className="flex justify-between items-center border-b pb-3">
+                            <h4 className="font-bold text-slate-800 text-sm">{t.currentLeaveYear}</h4>
+                            <span className="text-[10px] text-gray-400 font-medium">Jan 01 — Dec 31, 2026</span>
+                          </div>
+
+                          <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <div className="flex justify-between text-xs font-semibold text-slate-700">
+                              <span>{t.vacationAllowance}</span>
+                              <span>{vacAllowance.toFixed(1)} days</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{t.vacationTaken}</span>
+                              <span className="text-amber-600 font-semibold">-{empVacationTaken.toFixed(1)} days</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-bold text-slate-800 border-t pt-1">
+                              <span>{t.remaining}</span>
+                              <span className="text-[#0052cc]">{vacRemaining.toFixed(1)} days</span>
+                            </div>
+                            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-1">
+                              <div className="bg-[#0052cc] h-full transition-all duration-300" style={{ width: `${vacTakenPct}%` }}></div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <div className="flex justify-between text-xs font-semibold text-slate-700">
+                              <span>{t.ptoAllowance}</span>
+                              <span>{ptoAllowance.toFixed(1)} days</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{t.ptoTaken}</span>
+                              <span className="text-amber-600 font-semibold">-{empPtoTaken.toFixed(1)} days</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-bold text-slate-800 border-t pt-1">
+                              <span>{t.remaining}</span>
+                              <span className="text-[#00c896]">{ptoRemaining.toFixed(1)} days</span>
+                            </div>
+                            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-1">
+                              <div className="bg-[#00c896] h-full transition-all duration-300" style={{ width: `${ptoTakenPct}%` }}></div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <div className="flex justify-between text-xs font-semibold text-slate-700">
+                              <span>{t.sickAllowance}</span>
+                              <span>{sickAllowance.toFixed(1)} days</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{t.sickTaken}</span>
+                              <span className="text-amber-600 font-semibold">-{empSickTaken.toFixed(1)} days</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-bold text-slate-800 border-t pt-1">
+                              <span>{t.remaining}</span>
+                              <span className="text-emerald-600">{sickRemaining.toFixed(1)} days</span>
+                            </div>
+                            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-1">
+                              <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${sickTakenPct}%` }}></div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <div className="flex justify-between text-xs font-semibold text-slate-700">
+                              <span>{t.floatingAllowance}</span>
+                              <span>{floatingAllowance.toFixed(1)} days</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{t.floatingTaken}</span>
+                              <span className="text-amber-600 font-semibold">-{empFloatingTaken.toFixed(1)} days</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-bold text-slate-800 border-t pt-1">
+                              <span>{t.remaining}</span>
+                              <span className="text-sky-600">{floatingRemaining.toFixed(1)} days</span>
+                            </div>
+                            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-1">
+                              <div className="bg-sky-500 h-full transition-all duration-300" style={{ width: `${floatingTakenPct}%` }}></div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <div className="flex justify-between text-xs font-semibold text-slate-700">
+                              <span>{t.tardanzaAllowance}</span>
+                              <span>{tardanzaAllowance} max</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{t.tardanzaTaken}</span>
+                              <span className="text-rose-600 font-semibold">{empTardanzaTaken} logged</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-bold text-slate-800 border-t pt-1">
+                              <span>{t.remaining}</span>
+                              <span className="text-rose-500">{tardanzaRemaining} left</span>
+                            </div>
+                            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-1">
+                              <div className="bg-rose-500 h-full transition-all duration-300" style={{ width: `${tardanzaTakenPct}%` }}></div>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t space-y-2">
+                            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
+                              <BarChart3 className="w-4 h-4 text-[#0052cc]" />
+                              <span>Time Off Usage Summary</span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-500 pt-1">
+                              <div>Vacation: <span className="font-bold text-slate-800">{vacTakenPct}%</span></div>
+                              <div>PTO: <span className="font-bold text-slate-800">{ptoTakenPct}%</span></div>
+                              <div>Sick: <span className="font-bold text-slate-800">{sickTakenPct}%</span></div>
+                              <div>Floating: <span className="font-bold text-slate-800">{floatingTakenPct}%</span></div>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+                          <div className="flex justify-between items-center border-b pb-3">
+                            <h3 className="text-base font-bold text-slate-800">{t.personalInfo}</h3>
+                            {isAdminOrOwner && (
+                              <button 
+                                onClick={() => handleOpenEditModal(emp)} 
+                                className="text-[#0052cc] hover:underline flex items-center space-x-1 font-semibold text-xs cursor-pointer"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                <span>{t.editBtn}</span>
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                            <div className="space-y-1">
+                              <span className="text-gray-400 font-medium">{t.fullName}</span>
+                              <p className="bg-slate-50 border rounded-lg px-3 py-2 font-semibold text-slate-800">{emp.name}</p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-gray-400 font-medium">{t.emailAddress}</span>
+                              <p className="bg-slate-50 border rounded-lg px-3 py-2 font-semibold text-slate-800">{emp.email}</p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-gray-400 font-medium">{t.role}</span>
+                              <p className="bg-slate-50 border rounded-lg px-3 py-2 font-semibold text-[#0052cc]">{translateRole(emp.role, lang)}</p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-gray-400 font-medium">{t.team}</span>
+                              <p className="bg-slate-50 border rounded-lg px-3 py-2 font-semibold text-slate-800">{emp.team}</p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-gray-400 font-medium">{t.office}</span>
+                              <p className="bg-slate-50 border rounded-lg px-3 py-2 font-semibold text-slate-800">{emp.office}</p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-gray-400 font-medium">{t.timeOffApprover}</span>
+                              <p className="bg-slate-50 border rounded-lg px-3 py-2 font-semibold text-slate-800">{timeOffApprover}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+                          <div className="flex justify-between items-center border-b pb-3">
+                            <h3 className="text-base font-bold text-slate-800">{t.weeklyWorkSchedule}</h3>
+                            <span className="text-xs text-gray-400 font-medium">{t.currentSchedule}</span>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-center text-xs text-slate-600 min-w-[500px]">
+                              <thead className="bg-slate-50 text-[11px] font-semibold text-gray-500 uppercase border-b">
+                                <tr>
+                                  <th className="p-2 text-left">Period</th>
+                                  <th className="p-2">Monday</th>
+                                  <th className="p-2">Tuesday</th>
+                                  <th className="p-2">Wednesday</th>
+                                  <th className="p-2">Thursday</th>
+                                  <th className="p-2">Friday</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                <tr>
+                                  <td className="p-2.5 text-left font-bold text-slate-700">Morning</td>
+                                  <td className="p-2.5">9:00am - 12:00pm</td>
+                                  <td className="p-2.5">9:00am - 12:00pm</td>
+                                  <td className="p-2.5">9:00am - 12:00pm</td>
+                                  <td className="p-2.5">9:00am - 12:00pm</td>
+                                  <td className="p-2.5">9:00am - 12:00pm</td>
+                                </tr>
+                                <tr>
+                                  <td className="p-2.5 text-left font-bold text-slate-700">Afternoon</td>
+                                  <td className="p-2.5">1:00pm - 6:00pm</td>
+                                  <td className="p-2.5">1:00pm - 6:00pm</td>
+                                  <td className="p-2.5">1:00pm - 6:00pm</td>
+                                  <td className="p-2.5">1:00pm - 6:00pm</td>
+                                  <td className="p-2.5">1:00pm - 6:00pm</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="pt-2 border-t text-center">
+                            <p className="text-xs font-bold text-[#0052cc]">{t.workdayHours}</p>
+                          </div>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  </div>
+                );
+              })()
             )}
           </div>
         )}
 
         {/* 5. TEAMS */}
-        {activeTab === 'Teams' && (
+        {activeTab === 'Teams' && allowedTabs.includes('Teams') && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-normal text-slate-700">{t.teams}</h2>
@@ -1339,57 +1720,59 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {teams.map(tItem => {
-                const teamMembers = employees.filter(e => e.team === tItem.name && e.name.toLowerCase() !== tItem.lead.toLowerCase());
-                return (
-                  <div key={tItem.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-slate-800 text-base">{tItem.name}</h3>
-                        <span className="bg-sky-50 text-[#0052cc] px-2 py-0.5 rounded text-[10px] font-bold border border-sky-100">
-                          {teamMembers.length + 1} {t.membersTotal}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 leading-relaxed">{tItem.description}</p>
-                      
-                      <div className="pt-2 border-t space-y-2">
-                        <p className="text-xs font-semibold text-[#0052cc]">{t.teamLead}: <span className="text-slate-800 font-bold">{tItem.lead}</span></p>
+              {teams
+                .filter(tItem => !isManager || tItem.lead.toLowerCase() === currentUser.name.toLowerCase())
+                .map(tItem => {
+                  const teamMembers = employees.filter(e => e.team === tItem.name && e.name.toLowerCase() !== tItem.lead.toLowerCase());
+                  return (
+                    <div key={tItem.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-slate-800 text-base">{tItem.name}</h3>
+                          <span className="bg-sky-50 text-[#0052cc] px-2 py-0.5 rounded text-[10px] font-bold border border-sky-100">
+                            {teamMembers.length + 1} {t.membersTotal}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 leading-relaxed">{tItem.description}</p>
                         
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-bold uppercase text-gray-400">{t.teamMembers}</p>
-                          <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                            {teamMembers.length > 0 ? (
-                              teamMembers.map(m => (
-                                <span key={m.id} className="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-medium">
-                                  {m.name}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-[11px] text-gray-400 italic">{t.noMembersAssigned}</span>
-                            )}
+                        <div className="pt-2 border-t space-y-2">
+                          <p className="text-xs font-semibold text-[#0052cc]">{t.teamLead}: <span className="text-slate-800 font-bold">{tItem.lead}</span></p>
+                          
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase text-gray-400">{t.teamMembers}</p>
+                            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                              {teamMembers.length > 0 ? (
+                                teamMembers.map(m => (
+                                  <span key={m.id} className="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-medium">
+                                    {m.name}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[11px] text-gray-400 italic">{t.noMembersAssigned}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {isAdminOrOwner && (
-                      <button 
-                        onClick={() => { setAddingMemberToTeam(tItem); setSelectedMemberToAdd(''); }}
-                        className="w-full mt-2 bg-slate-50 hover:bg-sky-50 text-[#0052cc] border border-slate-200 hover:border-sky-200 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center space-x-1.5 cursor-pointer"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>{t.addMember}</span>
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                      {(isAdminOrOwner || (isManager && tItem.lead.toLowerCase() === currentUser.name.toLowerCase())) && (
+                        <button 
+                          onClick={() => { setAddingMemberToTeam(tItem); setSelectedMemberToAdd(''); }}
+                          className="w-full mt-2 bg-slate-50 hover:bg-sky-50 text-[#0052cc] border border-slate-200 hover:border-sky-200 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>{t.addMember}</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
 
         {/* 6. OFFICES */}
-        {activeTab === 'Offices' && (
+        {activeTab === 'Offices' && allowedTabs.includes('Offices') && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-normal text-slate-700">{t.offices}</h2>
@@ -1413,7 +1796,7 @@ export default function App() {
         )}
 
         {/* 7. REPORTS */}
-        {activeTab === 'Reports' && (
+        {activeTab === 'Reports' && allowedTabs.includes('Reports') && (
           <div className="space-y-6">
             <h2 className="text-2xl font-normal text-slate-700">{t.reports}</h2>
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
@@ -1431,7 +1814,7 @@ export default function App() {
         )}
 
         {/* 8. AUDIT TRAIL */}
-        {activeTab === 'Audit Trail' && (
+        {activeTab === 'Audit Trail' && allowedTabs.includes('Audit Trail') && (
           <div className="space-y-6">
             <h2 className="text-2xl font-normal text-slate-700 flex items-center space-x-2">
               <ShieldCheck className="w-6 h-6 text-[#00c896]" /><span>{t.systemAuditTrail}</span>
@@ -1457,7 +1840,7 @@ export default function App() {
         )}
 
         {/* 9. SETTINGS */}
-        {activeTab === 'Settings' && (
+        {activeTab === 'Settings' && allowedTabs.includes('Settings') && (
           <div className="space-y-6">
             <h2 className="text-2xl font-normal text-slate-700">{t.settingsTitle}</h2>
             
@@ -1552,7 +1935,7 @@ export default function App() {
                   <option value="Manager">Manager</option>
                   <option value="Accounting">Accounting</option>
                   <option value="Admin">Admin</option>
-                  <option value="Owner">Owner</option>
+                  {isOwner && <option value="Owner">Owner</option>}
                 </select>
               </div>
               <div>
@@ -1635,7 +2018,7 @@ export default function App() {
                 <label className="block font-medium text-gray-700 mb-1">{t.employees}</label>
                 <select required value={reqEmployee} onChange={(e) => setReqEmployee(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-xs bg-white">
                   <option value="">{t.selectEmployee}</option>
-                  {employees.filter(e => e.status === 'Active').map((emp) => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
+                  {employees.filter(e => e.status === 'Active' && (!isManager || managedEmployeeNames.includes(e.name) || e.name.toLowerCase() === currentUser.name.toLowerCase())).map((emp) => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                 </select>
               </div>
               <div>
@@ -1682,7 +2065,7 @@ export default function App() {
                   <option value="Manager">Manager</option>
                   <option value="Accounting">Accounting</option>
                   <option value="Admin">Admin</option>
-                  <option value="Owner">Owner</option>
+                  {isOwner && <option value="Owner">Owner</option>}
                 </select>
               </div>
               <div className="flex justify-end space-x-2 pt-3 border-t">
